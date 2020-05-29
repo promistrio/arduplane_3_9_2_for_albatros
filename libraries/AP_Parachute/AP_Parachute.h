@@ -18,6 +18,10 @@
 #define AP_PARACHUTE_SERVO_ON_PWM_DEFAULT      1300    // default PWM value to move servo to when shutter is activated
 #define AP_PARACHUTE_SERVO_OFF_PWM_DEFAULT     1100    // default PWM value to move servo to when shutter is deactivated
 
+// Code to detect a crash main Arduplane code
+#define PARACHUTE_CHECK_ANGLE_DEVIATION_PITCH  5000    // critical pitch angle 50 degrees to detect
+#define PARACHUTE_CHECK_ANGLE_DEVIATION_ROLL   5500    // critical roll angle 55 degrees to detect
+
 #define AP_PARACHUTE_ALT_MIN_DEFAULT            10     // default min altitude the vehicle should have before parachute is released
 
 /// @class	AP_Parachute
