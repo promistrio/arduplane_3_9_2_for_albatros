@@ -159,6 +159,9 @@ public:
 
 private:
 
+    // parachute mode flag
+    bool parachute_enabled = false;
+
     // key aircraft parameters passed to multiple libraries
     AP_Vehicle::FixedWing aparm;
 
