@@ -599,6 +599,14 @@ const AP_Param::GroupInfo GCS_MAVLINK::var_info[] = {
     // @Increment: 1
     // @User: Advanced
     AP_GROUPINFO("ADSB",   9, GCS_MAVLINK, streamRates[9],  5),
+    // @Param: ALBATROS1
+    // @DisplayName: Extra data type 3 stream rate to ground station
+    // @Description: Extra data type 3 stream rate to ground station
+    // @Units: Hz
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("ALBATROS1",   10, GCS_MAVLINK, streamRates[10],  0),
     AP_GROUPEND
 };
 
@@ -661,6 +669,9 @@ static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_EKF_STATUS_REPORT,
     MSG_VIBRATION,
 };
+static const ap_message STREAM_ALBATROS1_msgs[] = {
+    MSG_BATTERY_STATUS,
+};
 static const ap_message STREAM_ADSB_msgs[] = {
     MSG_ADSB_VEHICLE
 };
@@ -673,8 +684,9 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
     MAV_STREAM_ENTRY(STREAM_RC_CHANNELS),
     MAV_STREAM_ENTRY(STREAM_EXTRA1),
     MAV_STREAM_ENTRY(STREAM_EXTRA2),
-    MAV_STREAM_ENTRY(STREAM_EXTRA3),
+    MAV_STREAM_ENTRY(STREAM_EXTRA3),    
     MAV_STREAM_ENTRY(STREAM_ADSB),
+    MAV_STREAM_ENTRY(STREAM_ALBATROS1),
     MAV_STREAM_TERMINATOR // must have this at end of stream_entries
 };
 

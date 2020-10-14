@@ -174,6 +174,9 @@ void GCS_MAVLINK::handle_request_data_stream(mavlink_message_t *msg)
     case MAV_DATA_STREAM_EXTRA3:
         rate = &streamRates[STREAM_EXTRA3];
         break;
+    case MAV_DATA_STREAM_ALBATROS1:
+        rate = &streamRates[STREAM_ALBATROS1];
+        break;
     }
 
     if (rate != nullptr) {

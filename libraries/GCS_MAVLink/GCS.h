@@ -138,10 +138,11 @@ public:
         STREAM_POSITION,
         STREAM_EXTRA1,
         STREAM_EXTRA2,
-        STREAM_EXTRA3,
+        STREAM_EXTRA3, 
         STREAM_PARAMS,
         STREAM_ADSB,
-        NUM_STREAMS
+        STREAM_ALBATROS1,
+        NUM_STREAMS        
     };
 
     // see if we should send a stream now. Called at 50Hz
