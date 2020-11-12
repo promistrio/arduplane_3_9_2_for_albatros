@@ -83,6 +83,10 @@ enum ap_message : uint8_t {
     MSG_LANDING,
     MSG_ESC_TELEMETRY,
     MSG_NAMED_FLOAT,
+    MSG_ALBATROS_1,
+    MSG_ALBATROS_2_4,
+    MSG_ALBATROS_4,
+    MSG_ALBATROS_10,
     MSG_LAST // MSG_LAST must be the last entry in this enum
 };
 
@@ -141,7 +145,10 @@ public:
         STREAM_EXTRA3, 
         STREAM_PARAMS,
         STREAM_ADSB,
-        STREAM_ALBATROS1,
+        STREAM_ALBATROS_1,
+        STREAM_ALBATROS_2_4,
+        STREAM_ALBATROS_4,
+        STREAM_ALBATROS_10,
         NUM_STREAMS        
     };
 
@@ -195,6 +202,10 @@ public:
     void send_home() const;
     void send_ekf_origin() const;
     virtual void send_position_target_global_int() { };
+    virtual void send_albatros_1() { };
+    virtual void send_albatros_2_4() { };
+    virtual void send_albatros_4() { };
+    virtual void send_albatros_10() { };
     void send_servo_output_raw();
     static void send_collision_all(const AP_Avoidance::Obstacle &threat, MAV_COLLISION_ACTION behaviour);
     void send_accelcal_vehicle_position(uint32_t position);
@@ -245,6 +256,8 @@ public:
     };
     // vehicle subclass cpp files should define this:
     static const struct stream_entries all_stream_entries[];
+    struct Location global_position_current_loc;
+
 
 protected:
 
@@ -562,7 +575,7 @@ private:
 
     // we cache the current location and send it even if the AHRS has
     // no idea where we are:
-    struct Location global_position_current_loc;
+    //struct Location global_position_current_loc;
 
     void send_global_position_int();
 

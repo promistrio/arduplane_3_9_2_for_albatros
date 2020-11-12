@@ -2895,6 +2895,8 @@ void GCS_MAVLINK::send_attitude() const
         omega.z);
 }
 
+
+
 int32_t GCS_MAVLINK::global_position_int_alt() const {
     return global_position_current_loc.alt * 10UL;
 }
@@ -3103,6 +3105,23 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
 #endif
         break;
     }
+    case MSG_ALBATROS_1:
+        CHECK_PAYLOAD_SIZE(ALBATROS_1_MSG);
+        send_albatros_1();        
+        break;
+    case MSG_ALBATROS_2_4:
+        CHECK_PAYLOAD_SIZE(ALBATROS_2_4_MSG);
+        send_albatros_2_4();
+        break;
+    case MSG_ALBATROS_4:
+        CHECK_PAYLOAD_SIZE(ALBATROS_4_MSG);
+        send_albatros_4();
+        break;
+    case MSG_ALBATROS_10:
+        CHECK_PAYLOAD_SIZE(ALBATROS_10_MSG);
+        //gcs().send_text(MAV_SEVERITY_DEBUG, "Send 10");
+        send_albatros_10();
+        break;
 
     default:
         // try_send_message must always at some stage return true for

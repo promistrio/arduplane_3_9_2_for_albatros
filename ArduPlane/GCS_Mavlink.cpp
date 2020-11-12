@@ -7,6 +7,94 @@ MAV_TYPE GCS_MAVLINK_Plane::frame_type() const
     return plane.quadplane.get_mav_type();
 }
 
+void GCS_MAVLINK_Plane::send_albatros_1() 
+{
+    const AP_AHRS &ahrs = AP::ahrs();
+    ahrs.get_position(global_position_current_loc); // return value ignored; we send stale data
+    const AP_BattMonitor &battery = AP::battery();
+    Vector3f vel;
+    ahrs.get_velocity_NED(vel); 
+    // catch the battery backend not supporting the required number of cells
+    static_assert(sizeof(AP_BattMonitor::cells) >= (sizeof(uint16_t) * MAVLINK_MSG_BATTERY_STATUS_FIELD_VOLTAGES_LEN),
+                  "Not enough battery cells for the MAVLink message");
+    Location &next_WP_loc = plane.next_WP_loc;
+    mavlink_msg_albatros_1_msg_send(
+        chan,
+        ahrs.yaw,
+        next_WP_loc.alt * 0.01f, // HUD\Target_alt (перенос значения alt из POSITION_TARGET_GLOBAL_INT) 1
+        battery.capacity_remaining_pct(0),
+        AP_HAL::millis(), //time_boot_ms
+        ahrs.yaw_sensor, // hdg
+        AP::gps().status(0), // fix type
+        AP::gps().num_sats(0) // sattelite visible
+    );
+
+
+
+}
+
+void GCS_MAVLINK_Plane::send_albatros_2_4()
+{
+    AP_AHRS &ahrs = AP::ahrs();
+
+    // return values ignored; we send stale data
+    ahrs.get_position(global_position_current_loc);
+    ahrs.get_velocity_NED(vfr_hud_velned);
+
+
+    //BATTERY_STATUS
+    const AP_BattMonitor &battery = AP::battery();
+    // catch the battery backend not supporting the required number of cells
+    static_assert(sizeof(AP_BattMonitor::cells) >= (sizeof(uint16_t) * MAVLINK_MSG_BATTERY_STATUS_FIELD_VOLTAGES_LEN),
+                  "Not enough battery cells for the MAVLink message");
+
+    //SYS_STATUS
+    //gcs().send_text(MAV_SEVERITY_DEBUG, "Sen24");
+
+    //Vibration
+    const AP_InertialSensor &ins = AP::ins();
+    Vector3f vibration = ins.get_vibration_levels();
+
+    //GPS_RAW_INT
+    const Location &loc = AP::gps().location(0);
+    mavlink_msg_albatros_2_4_msg_send(
+        chan,
+        vfr_hud_airspeed(),
+        ahrs.groundspeed(),
+        vfr_hud_throttle(),
+        global_position_current_loc.alt * 0.01f, // cm -> m
+        battery.has_current(0) ? battery.current_amps(0) * 100 : -1, // current in centiampere
+        battery.has_current(0) ? battery.consumed_mah(0) : -1,       // total consumed current in milliampere.hour
+        battery.voltage() * 1000,// sysstatus voltage battary
+        vibration.z,
+        loc.lat,        // in 1E7 degrees
+        loc.lng,        // in 1E7 degrees
+        vfr_hud_climbrate()
+        );
+}
+
+void GCS_MAVLINK_Plane::send_albatros_4()
+{
+    //gcs().send_text(MAV_SEVERITY_DEBUG, "Sen4");
+    mavlink_msg_albatros_4_msg_send(
+        chan,
+        global_position_int_alt(),       // millimeters above ground/sea level
+        global_position_int_relative_alt() // millimeters above home
+        );
+}
+
+void GCS_MAVLINK_Plane::send_albatros_10()
+{
+    const AP_AHRS &ahrs = AP::ahrs();
+    //gcs().send_text(MAV_SEVERITY_DEBUG, "Sen10");
+    float r = ahrs.roll;
+    float p = ahrs.pitch - radians(plane.g.pitch_trim_cd*0.01f);
+    mavlink_msg_albatros_10_msg_send(
+        chan,
+        r,
+        p);
+}
+
 MAV_MODE GCS_MAVLINK_Plane::base_mode() const
 {
     uint8_t _base_mode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
@@ -606,7 +694,10 @@ const AP_Param::GroupInfo GCS_MAVLINK::var_info[] = {
     // @Range: 0 10
     // @Increment: 1
     // @User: Advanced
-    AP_GROUPINFO("ALBATROS1",   10, GCS_MAVLINK, streamRates[10],  0),
+    AP_GROUPINFO("ALBATROS_1",    10, GCS_MAVLINK, streamRates[10],  1),
+    AP_GROUPINFO("ALBATROS_2_4",  11, GCS_MAVLINK, streamRates[11],  3),
+    AP_GROUPINFO("ALBATROS_4",    12, GCS_MAVLINK, streamRates[12],  4),
+    AP_GROUPINFO("ALBATROS_10",   13, GCS_MAVLINK, streamRates[13],  10),
     AP_GROUPEND
 };
 
@@ -648,7 +739,7 @@ static const ap_message STREAM_EXTRA1_msgs[] = {
     MSG_ESC_TELEMETRY,
 };
 static const ap_message STREAM_EXTRA2_msgs[] = {
-    MSG_VFR_HUD
+    MSG_VFR_HUD,
 };
 static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_AHRS,
@@ -669,11 +760,20 @@ static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_EKF_STATUS_REPORT,
     MSG_VIBRATION,
 };
-static const ap_message STREAM_ALBATROS1_msgs[] = {
-    MSG_BATTERY_STATUS,
+static const ap_message STREAM_ALBATROS_1_msgs[] = {
+    MSG_ALBATROS_1,
+};
+static const ap_message STREAM_ALBATROS_2_4_msgs[] = {
+    MSG_ALBATROS_2_4,
+};
+static const ap_message STREAM_ALBATROS_4_msgs[] = {
+    MSG_ALBATROS_4,
+};
+static const ap_message STREAM_ALBATROS_10_msgs[] = {
+    MSG_ALBATROS_10,
 };
 static const ap_message STREAM_ADSB_msgs[] = {
-    MSG_ADSB_VEHICLE
+    MSG_GPS_RTK,
 };
 
 const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
@@ -686,7 +786,10 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
     MAV_STREAM_ENTRY(STREAM_EXTRA2),
     MAV_STREAM_ENTRY(STREAM_EXTRA3),    
     MAV_STREAM_ENTRY(STREAM_ADSB),
-    MAV_STREAM_ENTRY(STREAM_ALBATROS1),
+    MAV_STREAM_ENTRY(STREAM_ALBATROS_1),
+    MAV_STREAM_ENTRY(STREAM_ALBATROS_2_4),
+    MAV_STREAM_ENTRY(STREAM_ALBATROS_4),
+    MAV_STREAM_ENTRY(STREAM_ALBATROS_10),
     MAV_STREAM_TERMINATOR // must have this at end of stream_entries
 };
 

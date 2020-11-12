@@ -10,6 +10,11 @@ class GCS_MAVLINK_Plane : public GCS_MAVLINK
 
 public:
 
+    void send_albatros_1() ;
+    void send_albatros_2_4() ;
+    void send_albatros_4() ;
+    void send_albatros_10() ;
+
 protected:
 
     uint32_t telem_delay() const override;
