@@ -8,6 +8,42 @@ void Plane::parachute_check()
 {
 #if PARACHUTE == ENABLED
     parachute.update();
+    if (parachute.released()) {
+        if (parachute_enabled == true) {
+            gcs().send_text(MAV_SEVERITY_CRITICAL,"Parachute: Released");
+            set_mode((enum FlightMode)MANUAL, MODE_REASON_GCS_COMMAND);
+            parachute_enabled = false;
+        }
+    }
+
+    if (parachute.auto_enabled() &&
+        parachute.auto_release_alt_reached() &&
+        parachute.auto_release_alt() > relative_altitude) {
+        parachute_release();
+    }
+    
+// check deviation angles and relative altitude
+// check deviation angles
+float baro_alt = barometer.get_altitude();
+const float blimit = 2;
+if (parachute.auto_enabled() &&
+              arming.is_armed() &&
+                     is_flying() &&
+(baro_alt > auto_state.baro_takeoff_alt + blimit)&& (
+(abs(ahrs.pitch_sensor) >= PARACHUTE_CHECK_ANGLE_DEVIATION_PITCH) ||
+(abs(ahrs.roll_sensor) >= PARACHUTE_CHECK_ANGLE_DEVIATION_ROLL) ))  
+{
+parachute_release();
+}
+    if (parachute.auto_enabled()) {
+        static bool chute_auto_ready = false;
+        bool alt_reached = parachute.update_alt(relative_altitude);
+        if (alt_reached && chute_auto_ready == false) {
+            gcs().send_text(MAV_SEVERITY_CRITICAL,"Parachute: AUTO READY");
+            chute_auto_ready = true;
+        }
+        chute_auto_ready = alt_reached;
+    }
 #endif
 }
 
@@ -18,6 +54,10 @@ void Plane::parachute_check()
 */
 void Plane::parachute_release()
 {
+    disarm_motors();
+    set_mode((enum FlightMode)STABILIZE, MODE_REASON_GCS_COMMAND);
+    parachute_enabled = true;
+
     if (parachute.release_in_progress()) {
         return;
     }
@@ -25,7 +65,7 @@ void Plane::parachute_release()
     if (parachute.released()) {
         gcs().send_text(MAV_SEVERITY_CRITICAL,"Parachute: Released again");
     } else {
-        gcs().send_text(MAV_SEVERITY_CRITICAL,"Parachute: Released");
+        gcs().send_text(MAV_SEVERITY_CRITICAL,"Parachute: Disarmed, Elevon override");
     }
 
     // release parachute
@@ -41,13 +81,6 @@ bool Plane::parachute_manual_release()
 {
     // exit immediately if parachute is not enabled
     if (!parachute.enabled() || parachute.released()) {
-        return false;
-    }
-
-    if (parachute.alt_min() > 0 && relative_ground_altitude(false) < parachute.alt_min() &&
-            auto_state.last_flying_ms > 0) {
-        // Allow manual ground tests by only checking if flying too low if we've taken off
-        gcs().send_text(MAV_SEVERITY_WARNING, "Parachute: Too low");
         return false;
     }
 

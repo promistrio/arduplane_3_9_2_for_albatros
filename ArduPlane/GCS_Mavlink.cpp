@@ -2,6 +2,17 @@
 
 #include "Plane.h"
 
+void GCS_MAVLINK_Plane::setupuart(AP_HAL::UARTDriver *uart, const char *name)
+{//bcode
+    if (uart == NULL)
+    {
+        // that UART doesn't exist on this platform
+        return;
+    }
+    ///begin(baudrate,Rx,Tx)
+    uart->begin(57600, 256, 256);
+}
+
 MAV_TYPE GCS_MAVLINK_Plane::frame_type() const
 {
     return plane.quadplane.get_mav_type();
@@ -988,6 +999,386 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_long_packet(const mavlink_command_l
 {
     switch(packet.command) {
 
+case MAV_CMD_DO_DIGICAM_CONTROL: {
+	setupuart(hal.uartE, "uartE");
+	//bcode
+	const uint8_t *command_t;
+	//0x8x - first byte with x = addr of device: 0 is mainframe 1 is videocamSony/Tamron 2 is ATOM550
+	//Sony/Tamron Commands	
+	uint8_t tele[6]= {0x81,0x01,0x04,0x07,0x21,0xff}; // tele
+	uint8_t wide[6]= {0x81,0x01,0x04,0x07,0x31,0xff}; // wide
+	uint8_t stop[6]= {0x81,0x01,0x04,0x07,0x00,0xff}; // stop
+	
+	
+	uint8_t wb1[6]= {0x81,0x01,0x04,0x35,0x00,0xff}; // wb1	 8x 01 04 35 01 FF
+	uint8_t wb2[6]= {0x81,0x01,0x04,0x35,0x04,0xff}; // wb2 8x 01 04 35 02 FF
+	uint8_t blc[6]= {0x81,0x01,0x04,0x33,0x02,0xff}; //blc 8x 01 04 33 02 FF on   // 33 03 for off
+	uint8_t wdr[6]= {0x81,0x01,0x04,0x3d,0x02,0xff}; // wdr 8x 01 04 3d 02 FF on // 03 ff for off
+	uint8_t dfg_s[6]= {0x81,0x01,0x04,0x37,0x02,0xff}; // dfg 8x 01 04 37 02 FF // 03 ff for off
+	uint8_t dfg[7]= {0x81,0x01,0x04,0x37,0x02,0x00,0xff}; // dfg 8x 01 04 37 02 00 FF // 03 00 for off
+	uint8_t nrd[6]= {0x81,0x01,0x04,0x53,0x01,0xff}; // nrd 8x 01 04 53 0p FF // p=1..5
+	uint8_t zom[6]= {0x81,0x01,0x04,0x07,0x20,0xff}; // zom 8x 01 04 07 2p FF // 8x 01 04 07 3p FF ZoomOut //11-18 (p = 0..7)
+	uint8_t afs[6]= {0x81,0x01,0x04,0x58,0x02,0xff}; // afs 8x 01 04 58 02 FF // 8x 01 04 58 03 FF  LOW
+	uint8_t stb[6]= {0x81,0x01,0x04,0x34,0x02,0xff}; // stb 8x 01 04 34 02 FF // 8x 01 04 34 03 FF  off
+	//Commands for ATOM550
+	uint8_t auto_con[7]= {0xf0,0x03,0x26,0x03,0x02,0x2b,0xff}; //F0 03 26 03 02 2B FF – autoContrast
+	uint8_t pol_w[7]= {0xf0,0x03,0x26,0x01,0x00,0x27,0xff}; //F0 03 26 01 00 27 FF – White 
+	uint8_t pol_b[7]= {0xf0,0x03,0x26,0x01,0x0f,0x36,0xff}; //F0 03 26 01 0F 36 FF - Black
+	uint8_t con_p[7]= {0xf0,0x03,0x26,0x05,0x04,0x2f,0xff}; //F0 03 26 05 04 2F FF – Plus 
+	uint8_t con_m[7]= {0xf0,0x03,0x26,0x06,0x04,0x30,0xff}; //F0 03 26 06 04 30 FF - Minus
+	uint8_t zom_n[7]= {0xf0,0x03,0x26,0x02,0x00,0x28,0xff}; //F0 03 26 02 00 28 FF – Normal
+	uint8_t zom_2[7]= {0xf0,0x03,0x26,0x02,0x02,0x2a,0xff}; //F0 03 26 02 02 2A FF – 2x
+	uint8_t zom_4[7]= {0xf0,0x03,0x26,0x02,0x04,0x2c,0xff}; //F0 03 26 02 04 2C FF - 4x
+	uint8_t pal_1[7]= {0xf0,0x03,0x26,0x11,0x00,0x37,0xff}; //F0 03 26 11 00 37 FF - pal1
+	uint8_t pal_2[7]= {0xf0,0x03,0x26,0x11,0x01,0x38,0xff}; //F0 03 26 11 01 38 FF - pal2
+	uint8_t pal_3[7]= {0xf0,0x03,0x26,0x11,0x02,0x39,0xff}; //F0 03 26 11 02 39 FF - pal3
+	uint8_t pal_4[7]= {0xf0,0x03,0x26,0x11,0x03,0x3a,0xff}; //F0 03 26 11 03 3a FF - pal4
+	uint8_t pal_5[7]= {0xf0,0x03,0x26,0x11,0x04,0x3b,0xff}; //F0 03 26 11 04 3b FF - pal5
+	uint8_t pal_6[7]= {0xf0,0x03,0x26,0x11,0x05,0x3c,0xff}; //F0 03 26 11 05 3c FF - pal6
+	uint8_t pal_7[7]= {0xf0,0x03,0x26,0x11,0x06,0x3d,0xff}; //F0 03 26 11 06 3d FF - pal7
+	uint8_t pal_8[7]= {0xf0,0x03,0x26,0x11,0x07,0x3e,0xff}; //F0 03 26 11 07 3e FF - pal8
+	uint8_t pal_9[7]= {0xf0,0x03,0x26,0x11,0x08,0x3f,0xff}; //F0 03 26 11 08 3f FF - pal9
+	uint8_t pal_s[6]= {0xf0,0x02,0x26,0x90,0xb6,0xff}; //F0 02 26 90 B6 FF - save pal
+	
+	//
+	/*	
+	if (is_equal(packet.param3,1.0f)) {
+	   command_t =&tele[0];
+           //hal.uartE->printf("\nZoomIn\n");
+	   hal.uartE->write(command_t,6);
+
+        } else   
+	{if (is_equal(packet.param3,-1.0f))
+           command_t =&wide[0];
+           ////hal.uartE->printf("\nZoomOut\n"); 
+	   hal.uartE->write(command_t,6);
+        }
+	*/
+	if (is_equal(packet.param7,5.0f)||is_equal(packet.param7,-5.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		command_t =&wb1[0];
+          	////hal.uartE->printf("\nWB1\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t = is_equal(packet.param7,5.0f)?&pol_w[0]:&pol_b[0];
+				////hal.uartE->printf("\nPOL\n");
+	   			hal.uartE->write(command_t,7);
+				}
+			}
+	}
+	if (is_equal(packet.param7,6.0f)||is_equal(packet.param7,-6.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		command_t =&wb2[0];
+          	//hal.uartE->printf("\nWB2\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t = is_equal(packet.param7,6.0f)?&con_p[0]:&con_m[0];
+				//hal.uartE->printf("\nCON\n");
+	   			hal.uartE->write(command_t,7);
+				}
+			}
+	}
+	if (is_equal(packet.param7,7.0f)||is_equal(packet.param7,-7.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		blc[4] = is_equal(packet.param7,7.0f)?0x02:0x03;
+		command_t =&blc[0];
+          	//hal.uartE->printf("\nBLC\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t = is_equal(packet.param7,7.0f)?&zom_2[0]:&zom_n[0];
+				//hal.uartE->printf("\nZOM\n");
+	   			hal.uartE->write(command_t,7);
+				}
+			}
+	}
+	if (is_equal(packet.param7,77.0f)&&is_equal(packet.param6,3.0f)) { 
+		
+		command_t =&zom_4[0];
+          	//hal.uartE->printf("\nZOM4\n");
+	   	hal.uartE->write(command_t,7);
+		}
+		
+
+	if (is_equal(packet.param7,8.0f)||is_equal(packet.param7,-8.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		wdr[4] = is_equal(packet.param7,8.0f)?0x03:0x00;
+		command_t =&wdr[0];
+          	//hal.uartE->printf("\nWDR\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {}
+			}
+	}
+	if (is_equal(packet.param7,9.0f)||is_equal(packet.param7,-9.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		dfg[4] = is_equal(packet.param7,9.0f)?0x02:0x03;
+		dfg_s[4] = is_equal(packet.param7,9.0f)?0x02:0x03;
+		command_t =is_equal(packet.param6,1.0f)?&dfg_s[0]:&dfg[0];
+          	//hal.uartE->printf("\nDFG\n");
+		if (is_equal(packet.param6,1.0f)){hal.uartE->write(command_t,6);}
+		else{
+	   	hal.uartE->write(command_t,7);
+		}}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {}
+			}
+	}
+	if (is_equal(packet.param7,10.0f)||is_equal(packet.param7,-10.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		nrd[4] = is_equal(packet.param7,10.0f)?0x03:0x00;
+		command_t =&nrd[0];
+          	//hal.uartE->printf("\nNRD\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_1[0];
+          			//hal.uartE->printf("\nPAL1\n");
+	   			hal.uartE->write(command_t,7);
+
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);	
+				}
+			}
+	}
+	if (is_equal(packet.param7,11.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x21;
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_2[0];
+          			//hal.uartE->printf("\nPAL2\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);	
+				}
+			}
+	}
+	if (is_equal(packet.param7,12.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x22;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_3[0];
+          			//hal.uartE->printf("\nPAL3\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);	
+				}
+			}
+	}
+	if (is_equal(packet.param7,13.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x23;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_4[0];
+          			//hal.uartE->printf("\nPAL4\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);	
+}
+			}
+	}
+	if (is_equal(packet.param7,14.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x24;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_5[0];
+          			//hal.uartE->printf("\nPAL5\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);	
+				}
+			}
+	}
+	if (is_equal(packet.param7,15.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x25;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_6[0];
+          			//hal.uartE->printf("\nPAL6\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);				
+				}
+			}
+	}
+	if (is_equal(packet.param7,16.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x26;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_7[0];
+          			//hal.uartE->printf("\nPAL7\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);					
+				}
+			}
+	}
+	if (is_equal(packet.param7,17.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x27;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_8[0];
+          			//hal.uartE->printf("\nPAL8\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);			
+				}}
+	}
+	if (is_equal(packet.param7,18.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		zom[4] = 0x28;		
+		command_t =&zom[0];
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+				command_t =&pal_9[0];
+          			//hal.uartE->printf("\nPAL9\n");
+	   			hal.uartE->write(command_t,7);
+				
+				//command_t =&pal_s[0];
+          			//hal.uartE->printf("\nPALS\n");
+	   			//hal.uartE->write(command_t,6);
+				}
+			}
+	}
+	if (is_equal(packet.param7,19.0f)||is_equal(packet.param7,-19.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		afs[4] = is_equal(packet.param7,19.0f)?0x02:0x03;
+		command_t =&afs[0];
+          	//hal.uartE->printf("\nAFS\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {}
+			}
+	}
+	if (is_equal(packet.param7,20.0f)||is_equal(packet.param7,-20.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		if (is_equal(packet.param6,1.0f)){tele[4]=0x21;wide[4]=0x31;}
+		else{tele[4] =0x25 ; wide[4] =0x35 ;}
+		command_t = is_equal(packet.param7,20.0f)?&tele[0]:&wide[0];
+		
+          	//hal.uartE->printf("\nZOM\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {command_t =&pal_s[0];
+          				//hal.uartE->printf("\nSTB\n");
+	   				hal.uartE->write(command_t,6);}
+			}
+	}
+	if (is_equal(packet.param7,21.0f)||is_equal(packet.param7,-21.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		stb[4] = is_equal(packet.param7,21.0f)?0x02:0x03;
+		command_t =&stb[0];
+          	//hal.uartE->printf("\nSTB\n");
+	   	hal.uartE->write(command_t,6);
+		}
+		else	{
+				if (is_equal(packet.param6,3.0f)) {
+					command_t =&auto_con[0];
+          				//hal.uartE->printf("\nSTB\n");
+	   				hal.uartE->write(command_t,6);}
+			}
+	}
+	if (is_equal(packet.param7,101.0f)||is_equal(packet.param7,102.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		nrd[4] = is_equal(packet.param7,101.0f)?0x01:0x02;
+		command_t =&nrd[0];
+          	//hal.uartE->printf("\nNRD\n");
+	   	hal.uartE->write(command_t,6);
+		}
+	}    
+	if (is_equal(packet.param7,103.0f)||is_equal(packet.param7,104.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		nrd[4] = is_equal(packet.param7,103.0f)?0x03:0x04;
+		command_t =&nrd[0];
+          	//hal.uartE->printf("\nNRD\n");
+	   	hal.uartE->write(command_t,6);
+		}
+	}     
+	if (is_equal(packet.param7,105.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		nrd[4] = 0x05;
+		command_t =&nrd[0];
+          	//hal.uartE->printf("\nNRD\n");
+	   	hal.uartE->write(command_t,6);
+		}
+	}  
+	if (is_equal(packet.param7,200.0f)) { 
+		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
+		
+		command_t =&stop[0];
+          	//hal.uartE->printf("\nstop\n");
+	   	hal.uartE->write(command_t,6);
+		}
+	}  
+
+	
+	
+	return MAV_RESULT_ACCEPTED;
+			} 
+
     case MAV_CMD_DO_CHANGE_SPEED:
         // if we're in failsafe modes (e.g., RTL, LOITER) or in pilot
         // controlled modes (e.g., MANUAL, TRAINING)
@@ -1169,13 +1560,13 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_long_packet(const mavlink_command_l
     case MAV_CMD_DO_PARACHUTE:
         // configure or release parachute
         switch ((uint16_t)packet.param1) {
-        case PARACHUTE_DISABLE:
+        case 100:
             plane.parachute.enabled(false);
             return MAV_RESULT_ACCEPTED;
-        case PARACHUTE_ENABLE:
+        case 101:
             plane.parachute.enabled(true);
             return MAV_RESULT_ACCEPTED;
-        case PARACHUTE_RELEASE:
+        case 102:
             // treat as a manual release which performs some additional check of altitude
             if (plane.parachute.released()) {
                 gcs().send_text(MAV_SEVERITY_NOTICE, "Parachute already released");
