@@ -105,6 +105,11 @@ bool MAVLink_routing::check_and_forward(mavlink_channel_t in_channel, const mavl
         // don't forward RADIO packets
         return true;
     }
+
+    if (msg->msgid == MAVLINK_MSG_ID_RAW_IMU) {
+        // don't forward RADIO packets
+        return true;
+    }
     
     if (msg->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
         // heartbeat needs special handling
@@ -154,7 +159,20 @@ bool MAVLink_routing::check_and_forward(mavlink_channel_t in_channel, const mavl
                              (int)target_system,
                              (int)target_component);
 #endif
-                    _mavlink_resend_uart(routes[i].channel, msg);
+                    if ((msg->compid == 156)&& (msg->msgid == MAVLINK_MSG_ID_ATTITUDE)){
+                        mavlink_attitude_t att;
+                        mavlink_msg_attitude_decode(msg, &att);
+                        mavlink_attitude_short_t att_s;
+                        att_s.pitch = att.pitch;
+                        att_s.roll = att.roll;
+                        att_s.yaw = att.yaw;
+                        mavlink_message_t att_msg;
+                        mavlink_msg_attitude_short_encode(msg->sysid,msg->compid, &att_msg, &att_s);
+                        _mavlink_resend_uart(routes[i].channel, &att_msg);
+                    }
+                    else{                    
+                        _mavlink_resend_uart(routes[i].channel, msg);
+                    }
                 }
                 sent_to_chan[routes[i].channel] = true;
                 forwarded = true;

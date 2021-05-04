@@ -229,11 +229,12 @@ void Plane::update_loiter(uint16_t radius)
  */
 void Plane::update_cruise()
 {
+    gcs().send_text(MAV_SEVERITY_INFO, "Current alexmos heading %.2fm", (double)degrees(plane.alexmos_heading));
     if (!cruise_state.locked_heading &&
-        channel_roll->get_control_in() == 0 &&
+        //channel_roll->get_control_in() == 0 &&
         rudder_input == 0 &&
         gps.status() >= AP_GPS::GPS_OK_FIX_2D &&
-        gps.ground_speed() >= 3 &&
+        //gps.ground_speed() >= 3 &&
         cruise_state.lock_timer_ms == 0) {
         // user wants to lock the heading - start the timer
         cruise_state.lock_timer_ms = millis();
@@ -250,8 +251,10 @@ void Plane::update_cruise()
     if (cruise_state.locked_heading) {
         next_WP_loc = prev_WP_loc;
         // always look 1km ahead
+        gcs().send_text(MAV_SEVERITY_INFO, "Set heading %.2fm", (double)degrees(plane.alexmos_heading));
         location_update(next_WP_loc,
-                        cruise_state.locked_heading_cd*0.01f, 
+                        degrees(plane.alexmos_heading),
+                        //cruise_state.locked_heading_cd*0.01f,  //degrees
                         get_distance(prev_WP_loc, current_loc) + 1000);
         nav_controller->update_waypoint(prev_WP_loc, next_WP_loc);
     }

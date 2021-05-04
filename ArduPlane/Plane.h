@@ -746,6 +746,7 @@ private:
 #if MOUNT == ENABLED
     // current_loc uses the baro/gps soloution for altitude rather than gps only.
     AP_Mount camera_mount{ahrs, current_loc};
+    float alexmos_heading = 0.0f;
 #endif
 
     // Arming/Disarming mangement class

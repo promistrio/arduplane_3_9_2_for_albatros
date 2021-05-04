@@ -2,6 +2,7 @@
 
 #include "Plane.h"
 
+
 void GCS_MAVLINK_Plane::setupuart(AP_HAL::UARTDriver *uart, const char *name)
 {//bcode
     if (uart == NULL)
@@ -29,15 +30,21 @@ void GCS_MAVLINK_Plane::send_albatros_1()
     static_assert(sizeof(AP_BattMonitor::cells) >= (sizeof(uint16_t) * MAVLINK_MSG_BATTERY_STATUS_FIELD_VOLTAGES_LEN),
                   "Not enough battery cells for the MAVLink message");
     Location &next_WP_loc = plane.next_WP_loc;
+
+    Vector3f wind = ahrs.wind_estimate();
+
+
     mavlink_msg_albatros_1_msg_send(
         chan,
         ahrs.yaw,
         next_WP_loc.alt * 0.01f, // HUD\Target_alt (перенос значения alt из POSITION_TARGET_GLOBAL_INT) 1
+        plane.mission.get_current_nav_index(),
         battery.capacity_remaining_pct(0),
-        AP_HAL::millis(), //time_boot_ms
         ahrs.yaw_sensor, // hdg
         AP::gps().status(0), // fix type
-        AP::gps().num_sats(0) // sattelite visible
+        AP::gps().num_sats(0), // sattelite visible
+        degrees(atan2f(-wind.y, -wind.x)),
+        wind.length()
     );
 
 
@@ -80,7 +87,8 @@ void GCS_MAVLINK_Plane::send_albatros_2_4()
         vibration.z,
         loc.lat,        // in 1E7 degrees
         loc.lng,        // in 1E7 degrees
-        vfr_hud_climbrate()
+        vfr_hud_climbrate(),
+        AP_HAL::millis() //time_boot_ms
         );
 }
 
@@ -1008,6 +1016,47 @@ case MAV_CMD_DO_DIGICAM_CONTROL: {
 	uint8_t tele[6]= {0x81,0x01,0x04,0x07,0x21,0xff}; // tele
 	uint8_t wide[6]= {0x81,0x01,0x04,0x07,0x31,0xff}; // wide
 	uint8_t stop[6]= {0x81,0x01,0x04,0x07,0x00,0xff}; // stop
+
+    //uint8_t fix_zoom_1[9] = {0x81,0x01,0x04,0x47,0x00,0x00,0x00,0x00,0xff};
+
+    //uint8_t fix_zoom_30[9] = {0x81,0x01,0x04,0x47,0x04,0x00,0x00,0x00,0xff};
+
+    uint8_t fixed_zoom[9] = {0x81,0x01,0x04,0x47,0x00,0x00,0x00,0x00,0xff};
+
+    int8_t zoom[30][4] = {
+        {0x00, 0x00, 0x00, 0x00},
+        {0x01, 0x06, 0x0A, 0x01},
+        {0x02, 0x00, 0x06, 0x03},
+        {0x02, 0x06, 0x02, 0x08},
+        {0x02, 0x0A, 0x01, 0x0D},
+        {0x02, 0x0D, 0x01, 0x03},
+        {0x02, 0x0F, 0x06, 0x0D},
+        {0x03, 0x01, 0x06, 0x01},
+        {0x03, 0x03, 0x00, 0x0D},
+        {0x03, 0x04, 0x08, 0x06},
+        {0x03, 0x05, 0x0D, 0x07},
+        {0x03, 0x07, 0x00, 0x09},
+        {0x03, 0x08, 0x02, 0x00},
+        {0x03, 0x09, 0x02, 0x00},
+        {0x03, 0x0A, 0x00, 0x0A},
+        {0x03, 0x0A, 0x0D, 0x0D},
+        {0x03, 0x0B, 0x09, 0x0C},
+        {0x03, 0x0C, 0x04, 0x06},
+        {0x03, 0x0C, 0x0D, 0x0C},
+        {0x03, 0x0D, 0x06, 0x00},
+        {0x03, 0x0D, 0x0D, 0x04},
+        {0x03, 0x0E, 0x03, 0x09},
+        {0x03, 0x0E, 0x09, 0x00},
+        {0x03, 0x0E, 0x0D, 0x0C},
+        {0x03, 0x0F, 0x01, 0x0E},
+        {0x03, 0x0F, 0x05, 0x07},
+        {0x03, 0x0F, 0x08, 0x0A},
+        {0x03, 0x0F, 0x0B, 0x06},
+        {0x03, 0x0F, 0x0D, 0x0C},
+        {0x04, 0x00, 0x00, 0x00}
+    };
+
+    //8x 01 04 47 0p 0q 0r 0s FF
 	
 	
 	uint8_t wb1[6]= {0x81,0x01,0x04,0x35,0x00,0xff}; // wb1	 8x 01 04 35 01 FF
@@ -1324,9 +1373,31 @@ case MAV_CMD_DO_DIGICAM_CONTROL: {
 		else	{
 				if (is_equal(packet.param6,3.0f)) {command_t =&pal_s[0];
           				//hal.uartE->printf("\nSTB\n");
-	   				hal.uartE->write(command_t,6);}
+	   				//hal.uartE->write(command_t,6);}
 			}
+            if (is_equal(packet.param7,20.0f)){
+                //hal.uartE->write(fix_zoom_30,9);
+            }
+            else{
+                //hal.uartE->write(fix_zoom_1,9);
+            }
+        }
+
 	}
+
+    if (((packet.param7) > 200.5f) && ((packet.param7) <= 230.2f)) { // from 201.0f to 230.0f
+        if (is_equal(packet.param6,2.0f)){
+        float fl = packet.param7;
+        int zm = (int)fl - 201;
+
+        fixed_zoom[4] = zoom[zm][0];
+        fixed_zoom[5] = zoom[zm][1];
+        fixed_zoom[6] = zoom[zm][2];
+        fixed_zoom[7] = zoom[zm][3];
+
+        hal.uartE->write(fixed_zoom,9);
+        }
+    }
 	if (is_equal(packet.param7,21.0f)||is_equal(packet.param7,-21.0f)) { 
 		if (is_equal(packet.param6,1.0f)|| is_equal(packet.param6,2.0f)) {
 		stb[4] = is_equal(packet.param7,21.0f)?0x02:0x03;
@@ -1656,6 +1727,20 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
     {
 #if MOUNT == ENABLED
         handle_gimbal_report(plane.camera_mount, msg);
+#endif
+        break;
+    }
+
+    case MAVLINK_MSG_ID_ATTITUDE: // get mount yaw for reversed fpv
+    {
+        mavlink_attitude_t att;
+#if MOUNT == ENABLED
+        if ((msg->sysid == 3) && (msg->compid == 156))
+        {
+            mavlink_msg_attitude_decode(msg, &att);
+            plane.alexmos_heading = att.yaw;
+        }
+        
 #endif
         break;
     }
